@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { useApi } from './hooks/useApi';
 import Navigation from './components/Navigation';
 import RulesList from './components/RulesList';
 import FoldersView from './components/FoldersView';
@@ -19,27 +20,43 @@ const TABS = {
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth();
+  const api = useApi();
   const [activeTab, setActiveTab] = useState(TABS.RULES);
   const [showSetup, setShowSetup] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
 
   // Check if user needs to complete setup after authentication
   useEffect(() => {
-    if (isAuthenticated && !localStorage.getItem('magicFolderSetupComplete')) {
-      setShowSetup(true);
+    if (isAuthenticated) {
+      checkMagicFolders();
+    } else {
+      setCheckingSetup(false);
     }
   }, [isAuthenticated]);
 
+  const checkMagicFolders = async () => {
+    try {
+      // Check if user already has magic folders in Gmail
+      const folders = await api.get('/magic-folders/list');
+      if (!folders || folders.length === 0) {
+        setShowSetup(true);
+      }
+    } catch (err) {
+      console.error('Failed to check magic folders:', err);
+    } finally {
+      setCheckingSetup(false);
+    }
+  };
+
   const handleSetupComplete = () => {
-    localStorage.setItem('magicFolderSetupComplete', 'true');
     setShowSetup(false);
   };
 
   const handleSetupSkip = () => {
-    localStorage.setItem('magicFolderSetupComplete', 'true');
     setShowSetup(false);
   };
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && checkingSetup)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <LoadingSpinner size="large" />
