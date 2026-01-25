@@ -15,6 +15,7 @@ function formatDate(dateString) {
 
 function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
@@ -131,7 +132,7 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
             <button
               onClick={() => {
                 setShowMenu(false);
-                onDelete();
+                setShowDeleteConfirm(true);
               }}
               className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
             >
@@ -141,6 +142,34 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
           </div>
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-2">Delete Rule?</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete the rule for <strong>{rule.email_pattern}</strong>? This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  onDelete();
+                }}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
