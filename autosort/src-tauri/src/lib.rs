@@ -4,7 +4,7 @@ use std::thread;
 use tiny_http::{Response, Server};
 use url::Url;
 
-const SERVICE_NAME: &str = "autosort";
+const SERVICE_NAME: &str = "com.sweep.email";
 
 // ============ KEYCHAIN COMMANDS ============
 
@@ -79,7 +79,7 @@ async fn start_oauth_callback_server() -> Result<String, String> {
                     .map(|(_, value)| value.to_string())
                 {
                     let response = Response::from_string(
-                        "<html><body><h1>Success!</h1><p>You can close this window and return to AutoSort.</p><script>window.close();</script></body></html>"
+                        "<html><body><h1>Success!</h1><p>You can close this window and return to Sweep.</p><script>window.close();</script></body></html>"
                     ).with_header(
                         tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/html"[..]).unwrap()
                     );
