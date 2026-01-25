@@ -225,13 +225,14 @@ async def process_label_change(
                     })
                     logger.info(f"Updated existing rule for {sender}")
             else:
-                # Create new rule
+                # Create new rule with deterministic ID to prevent duplicates
                 await rule_engine.create_rule(
                     email_pattern=sender,
                     match_type="exact",
                     action="move",
                     destination_label_id=label_id,
-                    destination_label_name=label_name
+                    destination_label_name=label_name,
+                    use_deterministic_id=True
                 )
                 logger.info(f"Created new rule: {sender} -> {label_name}")
 

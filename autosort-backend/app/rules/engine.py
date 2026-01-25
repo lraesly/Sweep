@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import hashlib
 import uuid
 
 from google.cloud import firestore
@@ -74,14 +75,26 @@ class RuleEngine:
         match_type: str,
         action: str,
         destination_label_id: str | None,
-        destination_label_name: str | None
+        destination_label_name: str | None,
+        use_deterministic_id: bool = False
     ) -> Rule:
-        """Create a new rule."""
-        rule_id = str(uuid.uuid4())
+        """Create a new rule.
+
+        If use_deterministic_id is True, uses a hash of the email pattern as the
+        document ID to prevent duplicates from race conditions.
+        """
+        email_pattern_lower = email_pattern.lower()
+
+        if use_deterministic_id:
+            # Create deterministic ID from email pattern to prevent duplicates
+            rule_id = hashlib.sha256(email_pattern_lower.encode()).hexdigest()[:20]
+        else:
+            rule_id = str(uuid.uuid4())
+
         now = datetime.now(timezone.utc)
 
         rule_data = {
-            "email_pattern": email_pattern.lower(),
+            "email_pattern": email_pattern_lower,
             "match_type": match_type,
             "action": action,
             "destination_label_id": destination_label_id,
@@ -91,6 +104,7 @@ class RuleEngine:
             "times_applied": 0
         }
 
+        # Use set() which will create or overwrite - prevents duplicates with deterministic ID
         await self.rules_collection.document(rule_id).set(rule_data)
 
         rule_data["id"] = rule_id
