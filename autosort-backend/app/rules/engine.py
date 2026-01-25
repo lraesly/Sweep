@@ -37,6 +37,16 @@ class RuleEngine:
 
         return None
 
+    async def get_rule_by_pattern(self, email_pattern: str) -> Rule | None:
+        """Find a rule by exact email pattern match (for deduplication)."""
+        email_pattern = email_pattern.lower()
+        rules_query = self.rules_collection.where("email_pattern", "==", email_pattern)
+        async for doc in rules_query.stream():
+            rule_data = doc.to_dict()
+            rule_data["id"] = doc.id
+            return Rule(**rule_data)
+        return None
+
     def _matches_pattern(
         self,
         sender: str,

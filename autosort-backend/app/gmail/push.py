@@ -213,8 +213,8 @@ async def process_label_change(
 
             logger.info(f"Creating rule: {sender} -> {label_name}")
 
-            # Check if rule already exists for this sender
-            existing_rule = await rule_engine.find_matching_rule(sender)
+            # Check if rule already exists for this exact sender (prevents duplicates)
+            existing_rule = await rule_engine.get_rule_by_pattern(sender)
             if existing_rule:
                 # Rule exists - update it to point to new folder
                 if existing_rule.destination_label_id != label_id:
