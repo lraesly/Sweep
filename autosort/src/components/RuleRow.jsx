@@ -7,6 +7,12 @@ const MATCH_TYPE_LABELS = {
   contains: 'Contains',
 };
 
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
   const [showMenu, setShowMenu] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
@@ -61,13 +67,13 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
         </button>
       </div>
 
-      <div className="col-span-4 min-w-0">
+      <div className="col-span-3 min-w-0">
         <span className="font-medium text-gray-900 dark:text-gray-100 block truncate" title={rule.email_pattern}>
           {rule.email_pattern}
         </span>
       </div>
 
-      <div className="col-span-2">
+      <div className="col-span-1">
         <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
           {MATCH_TYPE_LABELS[rule.match_type] || rule.match_type}
         </span>
@@ -87,6 +93,12 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
             </>
           )}
         </div>
+      </div>
+
+      <div className="col-span-2">
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {formatDate(rule.created_at)}
+        </span>
       </div>
 
       <div className="col-span-1 text-right">

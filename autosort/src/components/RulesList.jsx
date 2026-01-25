@@ -11,6 +11,7 @@ const SORT_COLUMNS = {
   PATTERN: 'email_pattern',
   MATCH_TYPE: 'match_type',
   DESTINATION: 'destination_label_name',
+  CREATED: 'created_at',
   USED: 'times_applied'
 };
 
@@ -58,6 +59,13 @@ function RulesList() {
       if (typeof aVal === 'boolean') {
         aVal = aVal ? 1 : 0;
         bVal = bVal ? 1 : 0;
+      }
+
+      // Handle dates
+      if (sortColumn === 'created_at') {
+        aVal = new Date(aVal).getTime() || 0;
+        bVal = new Date(bVal).getTime() || 0;
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
       }
 
       // Handle numbers
@@ -179,15 +187,15 @@ function RulesList() {
               currentColumn={sortColumn}
               direction={sortDirection}
               onSort={handleSort}
-              className="col-span-4"
+              className="col-span-3"
             />
             <SortableHeader
-              label="Match Type"
+              label="Match"
               column={SORT_COLUMNS.MATCH_TYPE}
               currentColumn={sortColumn}
               direction={sortDirection}
               onSort={handleSort}
-              className="col-span-2"
+              className="col-span-1"
             />
             <SortableHeader
               label="Destination"
@@ -196,6 +204,14 @@ function RulesList() {
               direction={sortDirection}
               onSort={handleSort}
               className="col-span-3"
+            />
+            <SortableHeader
+              label="Created"
+              column={SORT_COLUMNS.CREATED}
+              currentColumn={sortColumn}
+              direction={sortDirection}
+              onSort={handleSort}
+              className="col-span-2"
             />
             <SortableHeader
               label="Used"

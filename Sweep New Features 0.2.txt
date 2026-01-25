@@ -1,0 +1,29 @@
+New features for sweep version 0.2
+
+1) Email Blackhole
+A special system folder called @Blackhole will be available in the app. A email can be dragged to @Blackhole. Future emails
+from this sender will be automatically sent to this folder. When a new email is moved to the mailbox,
+it will be marked as read. There will be an option on the settings page to turn on and off the system 
+folder called @Blackhole. Emails in the mailbox are automatically deleted after a period of time, 
+which can be set on the settings page. Time will be in days and the default is for the mailbox to be on
+and emails deleted after seven days.
+
+ 2) Automatic Timed Removal from folder to Archive
+ Each magic folder will have an additional option to automatically move an email to the
+ Archive folder. There will be an option to move read emails to Archive after a certain period
+ of time, defined in the folders section of each magic folder. There will be another option 
+ which would move unread emails to the Archive folder and then mark them as read, after a certain period 
+ of time.
+ 
+ 3) Application Logo 
+ Add the new Sweep logo as the App Icon from the file sweep_icon
+ 
+ 4) 1Rules Sorting
+ The Rules page in the app should be able to be sorted by any of the headers.
+ 
+ 5) Long email names are overwriting other fields. 
+ 6) What if a folder name is changed?
+ 7) What does the Start/Stop/Renew Watching do? Shouldn't it just be a toggle?
+ 
+ 1-25-2026 12:21 pm
+ Email rules should have creation date in the list.
