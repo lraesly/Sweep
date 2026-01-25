@@ -752,3 +752,69 @@ async def cleanup_archive():
         "failed": len(failed),
         "details": {"processed": processed, "failed": failed}
     }
+
+
+@router.post("/magic-folders/{label_id}/cleanup")
+async def cleanup_magic_folder(
+    label_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Manually trigger cleanup for a specific magic folder.
+    - Archives ALL read emails immediately (regardless of time settings)
+    - Archives unread emails older than the configured unread time setting
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    user_email = user["email"]
+    credentials = user["credentials"]
+
+    gmail = GmailClient(credentials)
+    engine = RuleEngine(user_email)
+
+    # Get folder settings
+    folder_settings = await engine.get_folder_settings(label_id)
+
+    # Get the label name from Gmail
+    labels = await gmail.list_labels()
+    label = next((l for l in labels if l["id"] == label_id), None)
+    if not label:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    label_name = label["name"]
+    result = {
+        "label_id": label_id,
+        "label_name": label_name,
+        "read_archived": 0,
+        "unread_archived": 0
+    }
+
+    # Archive ALL read emails (no time restriction)
+    if folder_settings.archive_read_enabled:
+        query = f"label:{label_name} is:read"
+        read_messages = await gmail.search_messages(query)
+
+        if read_messages:
+            await gmail.batch_modify_labels(
+                read_messages,
+                remove_labels=[label_id]
+            )
+            result["read_archived"] = len(read_messages)
+            logger.info(f"Manually archived {len(read_messages)} read emails from {label_name}")
+
+    # Archive unread emails older than configured time
+    if folder_settings.archive_unread_enabled:
+        unit_suffix = "h" if folder_settings.archive_unread_unit == "hours" else "d"
+        query = f"label:{label_name} older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread"
+        unread_messages = await gmail.search_messages(query)
+
+        if unread_messages:
+            await gmail.batch_modify_labels(
+                unread_messages,
+                remove_labels=[label_id, "UNREAD"]
+            )
+            result["unread_archived"] = len(unread_messages)
+            logger.info(f"Manually archived {len(unread_messages)} unread emails from {label_name}")
+
+    return result

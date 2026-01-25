@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Folder, RefreshCw, Trash2, Plus, Sparkles, AlertTriangle, ChevronDown, ChevronRight, Archive } from 'lucide-react';
+import { Folder, RefreshCw, Trash2, Plus, Sparkles, AlertTriangle, ChevronDown, ChevronRight, Archive, Paintbrush } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../hooks/useToast';
 import LoadingSpinner from './LoadingSpinner';
@@ -17,6 +17,7 @@ function FoldersView() {
   const [expandedFolder, setExpandedFolder] = useState(null);
   const [folderSettings, setFolderSettings] = useState({});
   const [savingSettings, setSavingSettings] = useState(null);
+  const [cleaningFolder, setCleaningFolder] = useState(null);
 
   const fetchFolders = async () => {
     setIsLoading(true);
@@ -24,6 +25,27 @@ function FoldersView() {
     try {
       const data = await api.get('/magic-folders/list');
       setMagicFolders(data);
+
+      // Load settings for all folders to show cleanup buttons
+      const settingsPromises = data
+        .filter(f => f.name !== '@Blackhole')
+        .map(async (folder) => {
+          try {
+            const settings = await api.get(`/magic-folders/${folder.id}/settings`);
+            return { id: folder.id, settings };
+          } catch {
+            return null;
+          }
+        });
+
+      const settingsResults = await Promise.all(settingsPromises);
+      const newSettings = {};
+      settingsResults.forEach(result => {
+        if (result) {
+          newSettings[result.id] = result.settings;
+        }
+      });
+      setFolderSettings(prev => ({ ...prev, ...newSettings }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -100,6 +122,23 @@ function FoldersView() {
     } finally {
       setDeletingFolder(null);
       setShowDeleteConfirm(null);
+    }
+  };
+
+  const handleCleanupFolder = async (folder) => {
+    setCleaningFolder(folder.id);
+    try {
+      const result = await api.post(`/magic-folders/${folder.id}/cleanup`);
+      const total = result.read_archived + result.unread_archived;
+      if (total > 0) {
+        showToast('success', `Archived ${total} email${total !== 1 ? 's' : ''} from ${folder.name}`);
+      } else {
+        showToast('info', `No emails to archive in ${folder.name}`);
+      }
+    } catch (err) {
+      showToast('error', `Failed to cleanup folder: ${err.message}`);
+    } finally {
+      setCleaningFolder(null);
     }
   };
 
@@ -197,6 +236,8 @@ function FoldersView() {
               onCancelDelete={() => setShowDeleteConfirm(null)}
               onDelete={() => handleDeleteFolder(folder)}
               isDeleting={deletingFolder === folder.id}
+              onCleanup={() => handleCleanupFolder(folder)}
+              isCleaning={cleaningFolder === folder.id}
             />
           ))}
         </div>
@@ -230,10 +271,15 @@ function FolderRow({
   onShowDeleteConfirm,
   onCancelDelete,
   onDelete,
-  isDeleting
+  isDeleting,
+  onCleanup,
+  isCleaning
 }) {
   // Don't show archive settings for @Blackhole
   const showArchiveSettings = folder.name !== '@Blackhole';
+
+  // Show cleanup button if any archive setting is enabled
+  const showCleanupButton = settings && (settings.archive_read_enabled || settings.archive_unread_enabled);
 
   return (
     <div>
@@ -271,13 +317,29 @@ function FolderRow({
             </button>
           </div>
         ) : (
-          <button
-            onClick={onShowDeleteConfirm}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            title="Delete folder and associated rules"
-          >
-            <Trash2 size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            {showCleanupButton && (
+              <button
+                onClick={onCleanup}
+                disabled={isCleaning}
+                className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors disabled:opacity-50"
+                title="Archive emails now"
+              >
+                {isCleaning ? (
+                  <LoadingSpinner size="small" />
+                ) : (
+                  <Paintbrush size={18} />
+                )}
+              </button>
+            )}
+            <button
+              onClick={onShowDeleteConfirm}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Delete folder and associated rules"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
         )}
       </div>
 
