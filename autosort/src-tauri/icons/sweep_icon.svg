@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#63F2D6"/>
+      <stop offset="50%" style="stop-color:#4AA6FF"/>
+      <stop offset="100%" style="stop-color:#3B5CFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded rectangle -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1B1C3A"/>
+
+  <!-- S-shaped sweep path -->
+  <path
+    d="M 736,312
+       C 672,256 552,272 472,352
+       C 368,400 384,456 496,480
+       C 608,512 688,512 624,552
+       C 552,608 552,672 512,672
+       C 464,736 376,704 336,608
+       C 304,592 304,576 320,552"
+    fill="none"
+    stroke="url(#sGradient)"
+    stroke-width="120"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- Sparkle at position (722, 292) -->
+  <g transform="translate(722, 292)">
+    <!-- Vertical capsule -->
+    <rect x="-7" y="-45" width="14" height="90" rx="7" ry="7" fill="#9EF2FF"/>
+    <!-- Horizontal capsule -->
+    <rect x="-45" y="-7" width="90" height="14" rx="7" ry="7" fill="#9EF2FF"/>
+    <!-- Diagonal capsule 45deg -->
+    <rect x="-5" y="-35" width="10" height="70" rx="5" ry="5" fill="#7DDBFF" fill-opacity="0.9" transform="rotate(45)"/>
+    <!-- Diagonal capsule -45deg -->
+    <rect x="-5" y="-35" width="10" height="70" rx="5" ry="5" fill="#7DDBFF" fill-opacity="0.9" transform="rotate(-45)"/>
+  </g>
+</svg>

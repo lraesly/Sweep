@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build outputs
+dist/
+target/
+*.dmg
+*.app
+
+# Environment files
+.env
+.env.local
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Python
+*.egg-info/
+.pytest_cache/
+
+# Credentials (never commit)
+credentials.json
+token.json
+*-credentials.json
+client_secret.json
