@@ -757,7 +757,7 @@ async def cleanup_archive():
 @router.post("/magic-folders/{label_id}/cleanup")
 async def cleanup_magic_folder(
     label_id: str,
-    user: dict = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
     """
     Manually trigger cleanup for a specific magic folder.
@@ -767,8 +767,8 @@ async def cleanup_magic_folder(
     import logging
     logger = logging.getLogger(__name__)
 
-    user_email = user["email"]
-    credentials = user["credentials"]
+    user_email = user.id
+    credentials = user.credentials
 
     gmail = GmailClient(credentials)
     engine = RuleEngine(user_email)
