@@ -632,7 +632,7 @@ async def cleanup_blackhole():
 
             # Search for emails older than configured days
             delete_days = user_settings.blackhole_delete_days
-            query = f"label:{blackhole_label['id']} older_than:{delete_days}d"
+            query = f"label:{blackhole_label['name']} older_than:{delete_days}d"
             old_messages = await gmail.search_messages(query)
 
             if old_messages:
@@ -712,7 +712,7 @@ async def cleanup_archive():
                 # Archive read emails if enabled
                 if folder_settings.archive_read_enabled:
                     unit_suffix = "h" if folder_settings.archive_read_unit == "hours" else "d"
-                    query = f"label:{folder_settings.label_id} older_than:{folder_settings.archive_read_value}{unit_suffix} is:read"
+                    query = f"label:{folder_settings.label_name} older_than:{folder_settings.archive_read_value}{unit_suffix} is:read"
                     read_messages = await gmail.search_messages(query)
 
                     if read_messages:
@@ -726,7 +726,7 @@ async def cleanup_archive():
                 # Archive unread emails if enabled (and mark as read)
                 if folder_settings.archive_unread_enabled:
                     unit_suffix = "h" if folder_settings.archive_unread_unit == "hours" else "d"
-                    query = f"label:{folder_settings.label_id} older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread"
+                    query = f"label:{folder_settings.label_name} older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread"
                     unread_messages = await gmail.search_messages(query)
 
                     if unread_messages:
