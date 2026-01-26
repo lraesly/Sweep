@@ -722,10 +722,9 @@ async def cleanup_archive():
                     "unread_archived": 0
                 }
 
-                # Archive read emails if enabled
+                # Archive read emails if enabled (no time restriction - archive immediately when read)
                 if folder_settings.archive_read_enabled:
-                    unit_suffix = "h" if folder_settings.archive_read_unit == "hours" else "d"
-                    query = f"label:{folder_settings.label_name} older_than:{folder_settings.archive_read_value}{unit_suffix} is:read"
+                    query = f"label:{folder_settings.label_name} is:read"
                     read_messages = await gmail.search_messages(query)
 
                     if read_messages:
