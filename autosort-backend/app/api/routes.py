@@ -619,15 +619,28 @@ async def cleanup_blackhole():
 
             gmail = GmailClient(credentials)
 
-            # Find @Blackhole label
+            # Get all labels
             labels = await gmail.list_labels()
-            blackhole_label = next(
-                (l for l in labels if l["name"] == "@Blackhole"),
-                None
-            )
+            label_map = {l["id"]: l for l in labels}
+
+            # Get blackhole label - prefer stored ID, fall back to name search
+            blackhole_label = None
+            if user_settings.blackhole_label_id:
+                blackhole_label = label_map.get(user_settings.blackhole_label_id)
+
+            # Fall back to name search if ID not stored or label not found
+            if not blackhole_label:
+                blackhole_label = next(
+                    (l for l in labels if l["name"] == "@Blackhole"),
+                    None
+                )
+                # Store the ID for future use
+                if blackhole_label:
+                    await engine.set_blackhole_label_id(blackhole_label["id"])
+                    logger.info(f"Stored blackhole label ID for {user_email}")
 
             if not blackhole_label:
-                logger.info(f"No @Blackhole folder for {user_email}")
+                logger.info(f"No blackhole folder for {user_email}")
                 continue
 
             # Search for emails older than configured days

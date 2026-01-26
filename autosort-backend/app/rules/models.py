@@ -69,12 +69,14 @@ class UserSettings(BaseModel):
     """User-configurable settings for the app."""
     blackhole_enabled: bool = True
     blackhole_delete_days: int = 7
+    blackhole_label_id: Optional[str] = None  # Gmail label ID for blackhole folder
 
 
 class UserSettingsUpdate(BaseModel):
     """Partial update for user settings."""
     blackhole_enabled: Optional[bool] = None
     blackhole_delete_days: Optional[int] = None
+    blackhole_label_id: Optional[str] = None
 
 
 class TimeUnit(str, Enum):

@@ -267,9 +267,21 @@ class RuleEngine:
             settings_data = data.get("settings", {})
             return UserSettings(
                 blackhole_enabled=settings_data.get("blackhole_enabled", True),
-                blackhole_delete_days=settings_data.get("blackhole_delete_days", 7)
+                blackhole_delete_days=settings_data.get("blackhole_delete_days", 7),
+                blackhole_label_id=settings_data.get("blackhole_label_id")
             )
         return UserSettings()
+
+    async def get_blackhole_label_id(self) -> str | None:
+        """Get the stored blackhole label ID."""
+        settings = await self.get_user_settings()
+        return settings.blackhole_label_id
+
+    async def set_blackhole_label_id(self, label_id: str) -> None:
+        """Store the blackhole label ID."""
+        await self.stats_doc.set({
+            "settings.blackhole_label_id": label_id
+        }, merge=True)
 
     async def update_user_settings(self, updates: dict) -> UserSettings:
         """Update user settings with provided values."""

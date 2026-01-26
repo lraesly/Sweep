@@ -149,8 +149,9 @@ async def process_new_email(
             logger.info(f"Applying rule: {rule.action} -> {rule.destination_label_name}")
             if rule.action == ActionType.MOVE:
                 remove_labels = ["INBOX"]
-                # If destination is @Blackhole, also mark as read
-                if rule.destination_label_name == "@Blackhole":
+                # If destination is blackhole folder, also mark as read
+                blackhole_label_id = await rule_engine.get_blackhole_label_id()
+                if rule.destination_label_id == blackhole_label_id:
                     remove_labels.append("UNREAD")
                     logger.info("Blackhole destination - marking as read")
 
@@ -191,6 +192,9 @@ async def process_label_change(
         all_labels = await gmail.list_labels()
         label_map = {l["id"]: l["name"] for l in all_labels}
 
+        # Get stored blackhole label ID
+        blackhole_label_id = await rule_engine.get_blackhole_label_id()
+
         for label_id in added_labels:
             label_name = label_map.get(label_id, "")
 
@@ -199,6 +203,12 @@ async def process_label_change(
                 continue
 
             logger.info(f"Magic folder detected: {label_name}")
+
+            # Auto-detect and store blackhole folder ID if not set
+            if label_name == "@Blackhole" and blackhole_label_id != label_id:
+                await rule_engine.set_blackhole_label_id(label_id)
+                blackhole_label_id = label_id
+                logger.info(f"Stored blackhole label ID: {label_id}")
 
             # Get the sender from this message
             message = await gmail.get_message_metadata(
@@ -243,8 +253,8 @@ async def process_label_change(
             if "INBOX" in current_labels:
                 remove_labels.append("INBOX")
 
-            # If moved to @Blackhole, also mark as read
-            if label_name == "@Blackhole":
+            # If moved to blackhole folder, also mark as read
+            if label_id == blackhole_label_id:
                 remove_labels.append("UNREAD")
                 logger.info("Blackhole folder - marking as read")
 

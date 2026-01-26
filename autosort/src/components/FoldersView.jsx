@@ -18,17 +18,22 @@ function FoldersView() {
   const [folderSettings, setFolderSettings] = useState({});
   const [savingSettings, setSavingSettings] = useState(null);
   const [cleaningFolder, setCleaningFolder] = useState(null);
+  const [blackholeLabelId, setBlackholeLabelId] = useState(null);
 
   const fetchFolders = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // Fetch user settings to get blackhole label ID
+      const userSettings = await api.get('/settings');
+      setBlackholeLabelId(userSettings.blackhole_label_id);
+
       const data = await api.get('/magic-folders/list');
       setMagicFolders(data);
 
-      // Load settings for all folders to show cleanup buttons
+      // Load settings for all folders to show cleanup buttons (except blackhole)
       const settingsPromises = data
-        .filter(f => f.name !== '@Blackhole')
+        .filter(f => f.id !== userSettings.blackhole_label_id)
         .map(async (folder) => {
           try {
             const settings = await api.get(`/magic-folders/${folder.id}/settings`);
@@ -238,6 +243,7 @@ function FoldersView() {
               isDeleting={deletingFolder === folder.id}
               onCleanup={() => handleCleanupFolder(folder)}
               isCleaning={cleaningFolder === folder.id}
+              isBlackhole={folder.id === blackholeLabelId}
             />
           ))}
         </div>
@@ -273,10 +279,11 @@ function FolderRow({
   onDelete,
   isDeleting,
   onCleanup,
-  isCleaning
+  isCleaning,
+  isBlackhole
 }) {
   // Don't show archive settings for @Blackhole
-  const showArchiveSettings = folder.name !== '@Blackhole';
+  const showArchiveSettings = !isBlackhole;
 
   // Show cleanup button if any archive setting is enabled
   const showCleanupButton = settings && (settings.archive_read_enabled || settings.archive_unread_enabled);

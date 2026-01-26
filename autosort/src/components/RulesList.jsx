@@ -29,8 +29,8 @@ function RulesList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingRule, setEditingRule] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [sortColumn, setSortColumn] = useState(SORT_COLUMNS.PATTERN);
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortColumn, setSortColumn] = useState(SORT_COLUMNS.CREATED);
+  const [sortDirection, setSortDirection] = useState('desc');
 
   const handleSort = (column) => {
     if (sortColumn === column) {
