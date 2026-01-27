@@ -158,6 +158,55 @@ class GmailClient:
 
         return message_ids
 
+    async def get_messages_by_label(self, label_id: str, read_only: bool = False, unread_only: bool = False, max_results: int = 500) -> list[str]:
+        """
+        Get messages with a specific label, optionally filtered by read status.
+        More reliable than search queries for labels with special characters.
+        Returns list of message IDs.
+        """
+        message_ids = []
+        page_token = None
+
+        # Build label filter - must have the specified label
+        label_ids = [label_id]
+        if unread_only:
+            label_ids.append("UNREAD")
+
+        while True:
+            params = {
+                "userId": self.user_id,
+                "labelIds": label_ids,
+                "maxResults": min(max_results - len(message_ids), 100)
+            }
+            if page_token:
+                params["pageToken"] = page_token
+
+            response = self.service.users().messages().list(**params).execute()
+            messages = response.get("messages", [])
+
+            if read_only:
+                # Filter for read messages (those without UNREAD label)
+                for msg in messages:
+                    # Get message to check labels
+                    msg_detail = self.service.users().messages().get(
+                        userId=self.user_id,
+                        id=msg["id"],
+                        format="minimal"
+                    ).execute()
+                    if "UNREAD" not in msg_detail.get("labelIds", []):
+                        message_ids.append(msg["id"])
+            else:
+                message_ids.extend([m["id"] for m in messages])
+
+            if len(message_ids) >= max_results:
+                break
+
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+
+        return message_ids[:max_results]
+
     async def delete_message(self, message_id: str) -> None:
         """Permanently delete a message (not trash)."""
         self.service.users().messages().delete(

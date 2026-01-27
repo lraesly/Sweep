@@ -533,14 +533,12 @@ async def renew_all_watches():
     # Get all users from Firestore
     users_ref = db.collection("users")
     async for doc in users_ref.stream():
+        user_id = doc.id  # Use document ID for consistency with subcollections
         user_data = doc.to_dict()
-        user_email = user_data.get("email")
-
-        if not user_email:
-            continue
+        user_email = user_data.get("email", user_id)
 
         try:
-            credentials = await get_user_credentials(user_email)
+            credentials = await get_user_credentials(user_id)
             if not credentials:
                 logger.warning(f"No credentials for {user_email}")
                 failed.append({"email": user_email, "error": "No credentials"})
@@ -595,15 +593,13 @@ async def cleanup_blackhole():
     # Get all users from Firestore
     users_ref = db.collection("users")
     async for doc in users_ref.stream():
+        user_id = doc.id  # Use document ID for consistency with subcollections
         user_data = doc.to_dict()
-        user_email = user_data.get("email")
-
-        if not user_email:
-            continue
+        user_email = user_data.get("email", user_id)
 
         try:
             # Get user settings
-            engine = RuleEngine(user_email)
+            engine = RuleEngine(user_id)
             user_settings = await engine.get_user_settings()
 
             # Skip if blackhole is disabled
@@ -611,7 +607,7 @@ async def cleanup_blackhole():
                 logger.info(f"Blackhole disabled for {user_email}, skipping")
                 continue
 
-            credentials = await get_user_credentials(user_email)
+            credentials = await get_user_credentials(user_id)
             if not credentials:
                 logger.warning(f"No credentials for {user_email}")
                 failed.append({"email": user_email, "error": "No credentials"})
@@ -689,43 +685,50 @@ async def cleanup_archive():
     # Get all users from Firestore
     users_ref = db.collection("users")
     async for doc in users_ref.stream():
+        user_id = doc.id  # Use document ID for consistency with subcollections
         user_data = doc.to_dict()
-        user_email = user_data.get("email")
-
-        if not user_email:
-            continue
+        user_email = user_data.get("email", user_id)
 
         try:
-            credentials = await get_user_credentials(user_email)
+            credentials = await get_user_credentials(user_id)
             if not credentials:
                 logger.warning(f"No credentials for {user_email}")
                 failed.append({"email": user_email, "error": "No credentials"})
                 continue
 
             gmail = GmailClient(credentials)
-            engine = RuleEngine(user_email)
+            engine = RuleEngine(user_id)
 
             # Get all folder settings for this user
             folder_settings_list = await engine.get_all_folder_settings()
+            logger.info(f"User {user_email} has {len(folder_settings_list)} folder settings")
 
             if not folder_settings_list:
                 logger.info(f"No folder settings for {user_email}")
                 continue
 
+            # Get fresh label names from Gmail
+            labels = await gmail.list_labels()
+            label_map = {l["id"]: l["name"] for l in labels}
+
             user_archived = {"email": user_email, "folders": []}
 
             for folder_settings in folder_settings_list:
+                # Use fresh label name from Gmail
+                label_name = label_map.get(folder_settings.label_id, folder_settings.label_name)
+                logger.info(f"Processing folder {label_name}: archive_read={folder_settings.archive_read_enabled}, archive_unread={folder_settings.archive_unread_enabled}")
                 folder_result = {
                     "label_id": folder_settings.label_id,
-                    "label_name": folder_settings.label_name,
+                    "label_name": label_name,
                     "read_archived": 0,
                     "unread_archived": 0
                 }
 
                 # Archive read emails if enabled (no time restriction - archive immediately when read)
                 if folder_settings.archive_read_enabled:
-                    query = f'label:"{folder_settings.label_name}" is:read'
-                    read_messages = await gmail.search_messages(query)
+                    logger.info(f"Getting read messages from {label_name} (label_id: {folder_settings.label_id})")
+                    read_messages = await gmail.get_messages_by_label(folder_settings.label_id, read_only=True)
+                    logger.info(f"Found {len(read_messages)} read messages in {label_name}")
 
                     if read_messages:
                         await gmail.batch_modify_labels(
@@ -733,12 +736,12 @@ async def cleanup_archive():
                             remove_labels=[folder_settings.label_id]
                         )
                         folder_result["read_archived"] = len(read_messages)
-                        logger.info(f"Archived {len(read_messages)} read emails from {folder_settings.label_name} for {user_email}")
+                        logger.info(f"Archived {len(read_messages)} read emails from {label_name} for {user_email}")
 
                 # Archive unread emails if enabled (and mark as read)
                 if folder_settings.archive_unread_enabled:
                     unit_suffix = "h" if folder_settings.archive_unread_unit == "hours" else "d"
-                    query = f'label:"{folder_settings.label_name}" older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread'
+                    query = f'label:"{label_name}" older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread'
                     unread_messages = await gmail.search_messages(query)
 
                     if unread_messages:
@@ -747,7 +750,7 @@ async def cleanup_archive():
                             remove_labels=[folder_settings.label_id, "UNREAD"]
                         )
                         folder_result["unread_archived"] = len(unread_messages)
-                        logger.info(f"Archived {len(unread_messages)} unread emails from {folder_settings.label_name} for {user_email}")
+                        logger.info(f"Archived {len(unread_messages)} unread emails from {label_name} for {user_email}")
 
                 if folder_result["read_archived"] > 0 or folder_result["unread_archived"] > 0:
                     user_archived["folders"].append(folder_result)
