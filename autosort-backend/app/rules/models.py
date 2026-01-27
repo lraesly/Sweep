@@ -24,6 +24,7 @@ class Rule(BaseModel):
     destination_label_name: Optional[str] = None
     created_at: datetime
     enabled: bool = True
+    mark_as_read: bool = False
     times_applied: int = 0
 
 
@@ -33,6 +34,7 @@ class RuleCreate(BaseModel):
     action: ActionType = ActionType.MOVE
     destination_label_id: Optional[str] = None
     destination_label_name: Optional[str] = None
+    mark_as_read: bool = False
 
 
 class RuleUpdate(BaseModel):
@@ -42,6 +44,7 @@ class RuleUpdate(BaseModel):
     destination_label_id: Optional[str] = None
     destination_label_name: Optional[str] = None
     enabled: Optional[bool] = None
+    mark_as_read: Optional[bool] = None
 
 
 class MagicFolder(BaseModel):

@@ -8,6 +8,7 @@ function RuleEditor({ rule, onSave, onClose }) {
     action: rule?.action || 'move',
     destination_label_name: rule?.destination_label_name || '',
     enabled: rule?.enabled ?? true,
+    mark_as_read: rule?.mark_as_read ?? false,
   });
 
   const handleSubmit = (e) => {
@@ -89,17 +90,33 @@ function RuleEditor({ rule, onSave, onClose }) {
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="enabled"
-              checked={formData.enabled}
-              onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-              className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-            />
-            <label htmlFor="enabled" className="text-sm text-gray-700 dark:text-gray-300">
-              Rule enabled
-            </label>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="enabled"
+                checked={formData.enabled}
+                onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <label htmlFor="enabled" className="text-sm text-gray-700 dark:text-gray-300">
+                Rule enabled
+              </label>
+            </div>
+            {formData.action === 'move' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="mark_as_read"
+                  checked={formData.mark_as_read}
+                  onChange={(e) => setFormData({ ...formData, mark_as_read: e.target.checked })}
+                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                />
+                <label htmlFor="mark_as_read" className="text-sm text-gray-700 dark:text-gray-300">
+                  Mark as read
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

@@ -149,11 +149,11 @@ async def process_new_email(
             logger.info(f"Applying rule: {rule.action} -> {rule.destination_label_name}")
             if rule.action == ActionType.MOVE:
                 remove_labels = ["INBOX"]
-                # If destination is blackhole folder, also mark as read
+                # Mark as read if rule has mark_as_read enabled or destination is blackhole
                 blackhole_label_id = await rule_engine.get_blackhole_label_id()
-                if rule.destination_label_id == blackhole_label_id:
+                if rule.mark_as_read or rule.destination_label_id == blackhole_label_id:
                     remove_labels.append("UNREAD")
-                    logger.info("Blackhole destination - marking as read")
+                    logger.info("Marking as read")
 
                 await gmail.modify_labels(
                     message_id,
