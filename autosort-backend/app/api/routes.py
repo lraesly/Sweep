@@ -72,12 +72,19 @@ async def update_rule(
     user: User = Depends(get_current_user)
 ):
     """Update a rule."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     engine = RuleEngine(user.id)
     rule = await engine.get_rule(rule_id)
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
 
-    return await engine.update_rule(rule_id, update.model_dump(exclude_unset=True))
+    updates = update.model_dump(exclude_unset=True)
+    logger.info(f"Updating rule {rule_id} with: {updates}")
+    result = await engine.update_rule(rule_id, updates)
+    logger.info(f"Updated rule result: mark_as_read={result.mark_as_read}")
+    return result
 
 
 @router.delete("/rules/{rule_id}")

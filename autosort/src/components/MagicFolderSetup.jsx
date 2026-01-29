@@ -54,7 +54,7 @@ function MagicFolderSetup({ onComplete, onSkip }) {
       const token = await invoke('get_stored_token');
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'https://autosort-backend-405056809295.us-west1.run.app'}/api/v1/magic-folders/create`,
+        `${import.meta.env.VITE_API_URL || 'https://autosort-backend-405056809295.us-central1.run.app'}/api/v1/magic-folders/create`,
         {
           method: 'POST',
           headers: {
