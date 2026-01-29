@@ -131,7 +131,7 @@ npm run tauri build
 ### Backend
 ```bash
 cd autosort-backend
-gcloud run deploy autosort-backend --source . --region us-west1 --project autosort-prod
+gcloud run deploy autosort-backend --source . --region us-central1 --project autosort-prod
 ```
 
 ### Scheduler Jobs
