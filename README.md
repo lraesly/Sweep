@@ -29,6 +29,11 @@ An intelligent email sorting app that learns from your behavior. Drag emails int
 - Toggle rules on/off without deleting them
 - Search/filter rules by pattern or destination
 
+### Rule Actions
+- **Move to Folder**: Route emails to a specific magic folder, with optional mark as read
+- **Block & Delete**: Trash matching emails automatically
+- **Mark Read & Archive**: Mark emails as read and archive them (removes from inbox without moving to a folder)
+
 ### Match Types
 - **Exact**: Match the complete email address
 - **Domain**: Match all emails from a domain (e.g., `@example.com`)

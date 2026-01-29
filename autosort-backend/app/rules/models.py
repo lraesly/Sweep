@@ -13,6 +13,7 @@ class MatchType(str, Enum):
 class ActionType(str, Enum):
     MOVE = "move"
     BLOCK_DELETE = "block_delete"
+    READ_ARCHIVE = "read_archive"
 
 
 class Rule(BaseModel):

@@ -72,6 +72,7 @@ function RuleEditor({ rule, onSave, onClose }) {
             >
               <option value="move">Move to Folder</option>
               <option value="block_delete">Block & Delete</option>
+              <option value="read_archive">Mark Read & Archive</option>
             </select>
           </div>
 

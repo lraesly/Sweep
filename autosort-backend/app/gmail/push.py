@@ -161,6 +161,12 @@ async def process_new_email(
                     remove_labels=remove_labels
                 )
                 logger.info(f"Moved message to {rule.destination_label_name}")
+            elif rule.action == ActionType.READ_ARCHIVE:
+                await gmail.modify_labels(
+                    message_id,
+                    remove_labels=["INBOX", "UNREAD"]
+                )
+                logger.info("Marked as read and archived")
             elif rule.action == ActionType.BLOCK_DELETE:
                 await gmail.trash_message(message_id)
                 logger.info("Trashed message")
