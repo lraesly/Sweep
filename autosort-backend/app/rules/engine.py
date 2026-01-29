@@ -76,6 +76,7 @@ class RuleEngine:
         action: str,
         destination_label_id: str | None,
         destination_label_name: str | None,
+        mark_as_read: bool = False,
         use_deterministic_id: bool = False
     ) -> Rule:
         """Create a new rule.
@@ -101,6 +102,7 @@ class RuleEngine:
             "destination_label_name": destination_label_name,
             "created_at": now,
             "enabled": True,
+            "mark_as_read": mark_as_read,
             "times_applied": 0
         }
 

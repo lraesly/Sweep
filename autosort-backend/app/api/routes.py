@@ -47,7 +47,8 @@ async def create_rule(
         match_type=rule.match_type,
         action=rule.action,
         destination_label_id=rule.destination_label_id,
-        destination_label_name=rule.destination_label_name
+        destination_label_name=rule.destination_label_name,
+        mark_as_read=rule.mark_as_read
     )
 
 
