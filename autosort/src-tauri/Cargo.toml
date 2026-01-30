@@ -1,6 +1,6 @@
 [package]
 name = "autosort"
-version = "1.0.0"
+version = "0.4.1"
 description = "Email sorting automation"
 authors = ["You"]
 edition = "2021"
