@@ -168,8 +168,12 @@ async def process_new_email(
                 )
                 logger.info("Marked as read and archived")
             elif rule.action == ActionType.BLOCK_DELETE:
+                await gmail.modify_labels(
+                    message_id,
+                    remove_labels=["UNREAD"]
+                )
                 await gmail.trash_message(message_id)
-                logger.info("Trashed message")
+                logger.info("Marked as read and trashed message")
 
             # Update stats
             await rule_engine.increment_rule_counter(rule.id)
