@@ -103,9 +103,16 @@ async def process_gmail_notification(user_email: str, history_id: str):
                 gmail, rule_engine, message_id, added_labels
             )
 
-    # Update stored historyId for next notification
-    await update_history_id(user_email, history_id)
-    logger.info(f"Updated history ID to: {history_id}")
+    # Use the latest historyId from the API response (most up-to-date),
+    # falling back to the notification's historyId
+    new_history_id = history.get("historyId", history_id)
+
+    # Only update if newer to prevent regression from out-of-order notifications
+    if not last_history_id or int(new_history_id) > int(last_history_id):
+        await update_history_id(user_email, new_history_id)
+        logger.info(f"Updated history ID to: {new_history_id}")
+    else:
+        logger.info(f"Skipping history ID update: {new_history_id} <= {last_history_id}")
 
 
 async def process_new_email(

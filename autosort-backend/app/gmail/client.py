@@ -50,7 +50,25 @@ class GmailClient:
             params["historyTypes"] = history_types
 
         try:
-            return self.service.users().history().list(**params).execute()
+            all_history = []
+            page_token = None
+
+            while True:
+                if page_token:
+                    params["pageToken"] = page_token
+
+                response = self.service.users().history().list(**params).execute()
+                all_history.extend(response.get("history", []))
+
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+
+            result = {"history": all_history}
+            # Include the latest historyId from the response
+            if "historyId" in response:
+                result["historyId"] = response["historyId"]
+            return result
         except HttpError as e:
             if e.resp.status == 404:
                 # History ID too old, need to do a full sync

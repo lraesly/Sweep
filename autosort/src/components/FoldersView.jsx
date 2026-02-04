@@ -33,7 +33,7 @@ function FoldersView() {
 
       // Load settings for all folders to show cleanup buttons (except blackhole)
       const settingsPromises = data
-        .filter(f => f.id !== userSettings.blackhole_label_id)
+        .filter(f => f.id !== userSettings.blackhole_label_id && f.name !== '@Blackhole')
         .map(async (folder) => {
           try {
             const settings = await api.get(`/magic-folders/${folder.id}/settings`);
@@ -243,7 +243,7 @@ function FoldersView() {
               isDeleting={deletingFolder === folder.id}
               onCleanup={() => handleCleanupFolder(folder)}
               isCleaning={cleaningFolder === folder.id}
-              isBlackhole={folder.id === blackholeLabelId}
+              isBlackhole={folder.id === blackholeLabelId || folder.name === '@Blackhole'}
             />
           ))}
         </div>
