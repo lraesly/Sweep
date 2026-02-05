@@ -1,4 +1,4 @@
-import { Pencil, Trash2, MoreVertical, Folder, Ban } from 'lucide-react';
+import { Pencil, Trash2, MoreVertical, Folder, Ban, Archive } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const MATCH_TYPE_LABELS = {
@@ -40,6 +40,7 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
   };
 
   const isBlockRule = rule.action === 'block_delete';
+  const isArchiveRule = rule.action === 'read_archive';
 
   return (
     <div
@@ -86,6 +87,11 @@ function RuleRow({ rule, onEdit, onToggleEnabled, onDelete }) {
             <>
               <Ban size={16} className="text-red-500 flex-shrink-0" />
               <span className="text-red-600 dark:text-red-400 truncate">Block & Delete</span>
+            </>
+          ) : isArchiveRule ? (
+            <>
+              <Archive size={16} className="text-green-500 flex-shrink-0" />
+              <span className="text-green-600 dark:text-green-400 truncate">Archive</span>
             </>
           ) : (
             <>
