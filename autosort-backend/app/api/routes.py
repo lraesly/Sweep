@@ -649,8 +649,8 @@ async def cleanup_blackhole():
 
             # Search for emails older than configured days
             delete_days = user_settings.blackhole_delete_days
-            query = f'label:"{blackhole_label["name"]}" older_than:{delete_days}d'
-            old_messages = await gmail.search_messages(query)
+            query = f'older_than:{delete_days}d'
+            old_messages = await gmail.search_messages(query, label_ids=[blackhole_label["id"]])
 
             if old_messages:
                 await gmail.batch_delete_messages(old_messages)

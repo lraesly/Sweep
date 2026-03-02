@@ -146,10 +146,11 @@ class GmailClient:
             id=label_id
         ).execute()
 
-    async def search_messages(self, query: str, max_results: int = 500) -> list[str]:
+    async def search_messages(self, query: str, max_results: int = 500, label_ids: list[str] = None) -> list[str]:
         """
         Search for messages matching a query.
         Returns list of message IDs.
+        Optionally filter by label IDs (more reliable than label: in query for special characters).
         """
         message_ids = []
         page_token = None
@@ -160,6 +161,8 @@ class GmailClient:
                 "q": query,
                 "maxResults": min(max_results - len(message_ids), 100)
             }
+            if label_ids:
+                params["labelIds"] = label_ids
             if page_token:
                 params["pageToken"] = page_token
 
