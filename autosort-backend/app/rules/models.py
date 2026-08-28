@@ -89,7 +89,7 @@ class TimeUnit(str, Enum):
 
 
 class MagicFolderSettings(BaseModel):
-    """Per-folder settings for auto-archiving."""
+    """Per-folder settings for auto-archiving and auto-marking as read."""
     label_id: str
     label_name: str
     archive_read_enabled: bool = False
@@ -98,6 +98,9 @@ class MagicFolderSettings(BaseModel):
     archive_unread_enabled: bool = False
     archive_unread_value: int = 60
     archive_unread_unit: TimeUnit = TimeUnit.DAYS
+    mark_read_enabled: bool = False
+    mark_read_value: int = 7
+    mark_read_unit: TimeUnit = TimeUnit.DAYS
 
 
 class MagicFolderSettingsUpdate(BaseModel):
@@ -108,3 +111,6 @@ class MagicFolderSettingsUpdate(BaseModel):
     archive_unread_enabled: Optional[bool] = None
     archive_unread_value: Optional[int] = None
     archive_unread_unit: Optional[TimeUnit] = None
+    mark_read_enabled: Optional[bool] = None
+    mark_read_value: Optional[int] = None
+    mark_read_unit: Optional[TimeUnit] = None

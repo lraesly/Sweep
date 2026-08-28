@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.dependencies import get_current_user, User
 from app.rules.engine import RuleEngine
-from app.rules.models import Rule, RuleCreate, RuleUpdate, MagicFolder, AutoLearnFolder, UserSettings, UserSettingsUpdate, MagicFolderSettings, MagicFolderSettingsUpdate
+from app.rules.models import Rule, RuleCreate, RuleUpdate, MagicFolder, AutoLearnFolder, UserSettings, UserSettingsUpdate, MagicFolderSettings, MagicFolderSettingsUpdate, TimeUnit
 from pydantic import BaseModel
 from app.gmail.client import GmailClient
 from app.config import get_settings
@@ -673,12 +675,25 @@ async def cleanup_blackhole():
     }
 
 
+def older_than_query(value: int, unit: str) -> str:
+    """
+    Gmail query fragment matching messages received before now minus value/unit.
+
+    Uses an epoch timestamp because it gives an exact, documented cutoff;
+    `older_than:` has no documented sub-day unit.
+    """
+    hours = value if unit == TimeUnit.HOURS else value * 24
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    return f"before:{int(cutoff.timestamp())}"
+
+
 @router.post("/cleanup/archive")
 async def cleanup_archive():
     """
     Internal endpoint to auto-archive old emails from magic folders.
-    Called by Cloud Scheduler daily.
-    Archives emails based on per-folder settings for read and unread emails.
+    Called by Cloud Scheduler hourly.
+    Archives emails based on per-folder settings for read and unread emails,
+    and marks old unread emails as read where that setting is enabled.
     """
     import logging
     from google.cloud import firestore
@@ -724,12 +739,13 @@ async def cleanup_archive():
             for folder_settings in folder_settings_list:
                 # Use fresh label name from Gmail
                 label_name = label_map.get(folder_settings.label_id, folder_settings.label_name)
-                logger.info(f"Processing folder {label_name}: archive_read={folder_settings.archive_read_enabled}, archive_unread={folder_settings.archive_unread_enabled}")
+                logger.info(f"Processing folder {label_name}: archive_read={folder_settings.archive_read_enabled}, archive_unread={folder_settings.archive_unread_enabled}, mark_read={folder_settings.mark_read_enabled}")
                 folder_result = {
                     "label_id": folder_settings.label_id,
                     "label_name": label_name,
                     "read_archived": 0,
-                    "unread_archived": 0
+                    "unread_archived": 0,
+                    "marked_read": 0
                 }
 
                 # Archive read emails if enabled (no time restriction - archive immediately when read)
@@ -760,7 +776,24 @@ async def cleanup_archive():
                         folder_result["unread_archived"] = len(unread_messages)
                         logger.info(f"Archived {len(unread_messages)} unread emails from {label_name} for {user_email}")
 
-                if folder_result["read_archived"] > 0 or folder_result["unread_archived"] > 0:
+                # Mark old unread emails as read if enabled (emails stay in the folder).
+                # Runs last so the archive steps above still see the true unread set.
+                if folder_settings.mark_read_enabled:
+                    query = older_than_query(folder_settings.mark_read_value, folder_settings.mark_read_unit)
+                    stale_unread = await gmail.search_messages(
+                        query,
+                        label_ids=[folder_settings.label_id, "UNREAD"]
+                    )
+
+                    if stale_unread:
+                        await gmail.batch_modify_labels(
+                            stale_unread,
+                            remove_labels=["UNREAD"]
+                        )
+                        folder_result["marked_read"] = len(stale_unread)
+                        logger.info(f"Marked {len(stale_unread)} emails as read in {label_name} for {user_email}")
+
+                if folder_result["read_archived"] > 0 or folder_result["unread_archived"] > 0 or folder_result["marked_read"] > 0:
                     user_archived["folders"].append(folder_result)
 
             if user_archived["folders"]:
@@ -786,6 +819,7 @@ async def cleanup_magic_folder(
     Manually trigger cleanup for a specific magic folder.
     - Archives ALL read emails immediately (regardless of time settings)
     - Archives unread emails older than the configured unread time setting
+    - Marks unread emails older than the configured mark-as-read setting as read
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -810,7 +844,8 @@ async def cleanup_magic_folder(
         "label_id": label_id,
         "label_name": label_name,
         "read_archived": 0,
-        "unread_archived": 0
+        "unread_archived": 0,
+        "marked_read": 0
     }
 
     # Archive ALL read emails (no time restriction)
@@ -839,5 +874,19 @@ async def cleanup_magic_folder(
             )
             result["unread_archived"] = len(unread_messages)
             logger.info(f"Manually archived {len(unread_messages)} unread emails from {label_name}")
+
+    # Mark unread emails older than configured time as read (they stay in the folder).
+    # Runs last so the archive steps above still see the true unread set.
+    if folder_settings.mark_read_enabled:
+        query = older_than_query(folder_settings.mark_read_value, folder_settings.mark_read_unit)
+        stale_unread = await gmail.search_messages(query, label_ids=[label_id, "UNREAD"])
+
+        if stale_unread:
+            await gmail.batch_modify_labels(
+                stale_unread,
+                remove_labels=["UNREAD"]
+            )
+            result["marked_read"] = len(stale_unread)
+            logger.info(f"Manually marked {len(stale_unread)} emails as read in {label_name}")
 
     return result

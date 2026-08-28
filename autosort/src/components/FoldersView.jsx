@@ -134,11 +134,15 @@ function FoldersView() {
     setCleaningFolder(folder.id);
     try {
       const result = await api.post(`/magic-folders/${folder.id}/cleanup`);
-      const total = result.read_archived + result.unread_archived;
-      if (total > 0) {
-        showToast('success', `Archived ${total} email${total !== 1 ? 's' : ''} from ${folder.name}`);
+      const archived = result.read_archived + result.unread_archived;
+      const markedRead = result.marked_read || 0;
+      const parts = [];
+      if (archived > 0) parts.push(`archived ${archived} email${archived !== 1 ? 's' : ''}`);
+      if (markedRead > 0) parts.push(`marked ${markedRead} as read`);
+      if (parts.length > 0) {
+        showToast('success', `${folder.name}: ${parts.join(', ')}`);
       } else {
-        showToast('info', `No emails to archive in ${folder.name}`);
+        showToast('info', `Nothing to clean up in ${folder.name}`);
       }
     } catch (err) {
       showToast('error', `Failed to cleanup folder: ${err.message}`);
@@ -285,8 +289,29 @@ function FolderRow({
   // Don't show archive settings for @Blackhole
   const showArchiveSettings = !isBlackhole;
 
-  // Show cleanup button if any archive setting is enabled
-  const showCleanupButton = settings && (settings.archive_read_enabled || settings.archive_unread_enabled);
+  // Show cleanup button if any auto-cleanup setting is enabled
+  const showCleanupButton = settings && (
+    settings.archive_read_enabled || settings.archive_unread_enabled || settings.mark_read_enabled
+  );
+
+  // Marking as read is independent of the archive toggles, but it changes what
+  // they see. Surface the two combinations whose net effect isn't obvious.
+  const toHours = (value, unit) => (unit === 'hours' ? value : value * 24);
+  let markReadNote = null;
+  if (settings && settings.mark_read_enabled) {
+    if (settings.archive_read_enabled) {
+      // Archive-read takes every read email with no time restriction, so it
+      // picks these up on the next cleanup and they leave the folder anyway.
+      markReadNote = '"Archive read emails" is also on, so these emails leave this folder on the next cleanup after they are marked read.';
+    } else if (
+      settings.archive_unread_enabled &&
+      toHours(settings.mark_read_value || 7, settings.mark_read_unit || 'days') <
+        toHours(settings.archive_unread_value || 60, settings.archive_unread_unit || 'days')
+    ) {
+      // These emails stop being unread before the archive-unread timer fires.
+      markReadNote = 'These emails become read before the unread archive timer fires, so "Archive unread emails" will not act on them. They stay in this folder until you archive them yourself.';
+    }
+  }
 
   return (
     <div>
@@ -330,7 +355,7 @@ function FolderRow({
                 onClick={onCleanup}
                 disabled={isCleaning}
                 className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors disabled:opacity-50"
-                title="Archive emails now"
+                title="Clean up this folder now"
               >
                 {isCleaning ? (
                   <LoadingSpinner size="small" />
@@ -354,7 +379,7 @@ function FolderRow({
         <div className="px-4 py-4 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
             <Archive size={16} />
-            <span className="font-medium">Auto-Archive Settings</span>
+            <span className="font-medium">Auto-Cleanup Settings</span>
           </div>
 
           {!settings ? (
@@ -404,8 +429,7 @@ function FolderRow({
                       const value = Math.max(1, Math.min(max, parseInt(e.target.value) || 30));
                       onUpdateSetting('archive_read_value', value);
                     }}
-                    disabled={isSaving}
-                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm disabled:opacity-50"
+                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm"
                   />
                   <select
                     value={settings.archive_read_unit || 'days'}
@@ -460,8 +484,7 @@ function FolderRow({
                       const value = Math.max(1, Math.min(max, parseInt(e.target.value) || 60));
                       onUpdateSetting('archive_unread_value', value);
                     }}
-                    disabled={isSaving}
-                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm disabled:opacity-50"
+                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm"
                   />
                   <select
                     value={settings.archive_unread_unit || 'days'}
@@ -472,6 +495,70 @@ function FolderRow({
                     <option value="hours">hours</option>
                     <option value="days">days</option>
                   </select>
+                </div>
+              )}
+
+              {/* Mark emails as read */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    Mark emails as read
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Mark unread emails as read after a set time, leaving them in this folder
+                  </div>
+                </div>
+                <button
+                  onClick={() => onUpdateSetting('mark_read_enabled', !settings.mark_read_enabled)}
+                  disabled={isSaving}
+                  className={`
+                    w-12 h-7 rounded-full transition-colors duration-200
+                    ${settings.mark_read_enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}
+                    ${isSaving ? 'opacity-50' : ''}
+                  `}
+                >
+                  <span
+                    className={`
+                      block w-5 h-5 rounded-full bg-white shadow transform transition-transform duration-200
+                      ${settings.mark_read_enabled ? 'translate-x-6' : 'translate-x-1'}
+                    `}
+                  />
+                </button>
+              </div>
+
+              {settings.mark_read_enabled && (
+                <div className="flex items-center gap-2 ml-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">After</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={settings.mark_read_unit === 'hours' ? 720 : 365}
+                    value={settings.mark_read_value || 7}
+                    onChange={(e) => {
+                      const max = settings.mark_read_unit === 'hours' ? 720 : 365;
+                      const value = Math.max(1, Math.min(max, parseInt(e.target.value) || 7));
+                      onUpdateSetting('mark_read_value', value);
+                    }}
+                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm"
+                  />
+                  <select
+                    value={settings.mark_read_unit || 'days'}
+                    onChange={(e) => onUpdateSetting('mark_read_unit', e.target.value)}
+                    disabled={isSaving}
+                    className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm disabled:opacity-50"
+                  >
+                    <option value="hours">hours</option>
+                    <option value="days">days</option>
+                  </select>
+                </div>
+              )}
+
+              {markReadNote && (
+                <div className="flex items-start gap-2 ml-4 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    {markReadNote}
+                  </p>
                 </div>
               )}
             </div>

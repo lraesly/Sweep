@@ -16,10 +16,11 @@ An intelligent email sorting app that learns from your behavior. Drag emails int
 - Configurable auto-delete timer (default: 7 days)
 - Permanently deletes old emails on schedule
 
-### Auto-Archive
-- Per-folder archive settings for automatic cleanup
+### Auto-Cleanup
+- Per-folder settings for automatic cleanup
 - Archive read emails after a configurable time (hours or days)
 - Archive unread emails after a configurable time (marks as read and removes from folder)
+- Mark unread emails as read after a configurable time (emails stay in the folder)
 - Keeps your magic folders clean without losing emails
 
 ### Rules Management
@@ -94,7 +95,7 @@ An intelligent email sorting app that learns from your behavior. Drag emails int
 
 ### Cleanup (Scheduler Endpoints)
 - `POST /cleanup/blackhole` - Delete old emails from @Blackhole folders
-- `POST /cleanup/archive` - Auto-archive emails based on folder settings
+- `POST /cleanup/archive` - Auto-archive and auto-mark-read emails based on folder settings
 
 ### Labels
 - `GET /labels` - List user's Gmail labels
@@ -137,6 +138,16 @@ npm run tauri build
 ```bash
 cd autosort-backend
 gcloud run deploy autosort-backend --source . --region us-central1 --project autosort-prod
+```
+
+> **Note (Aug 2026):** `--source` deploys are currently broken in this project — the
+> Cloud Run-orchestrated build queues forever and never gets scheduled (Google-side;
+> billing, quotas, and IAM all check out, and CLI-origin builds run fine). Until that
+> heals, build and deploy in two steps:
+```bash
+cd autosort-backend
+gcloud builds submit --region us-central1 --tag us-central1-docker.pkg.dev/autosort-prod/cloud-run-source-deploy/autosort-backend:latest
+gcloud run deploy autosort-backend --image us-central1-docker.pkg.dev/autosort-prod/cloud-run-source-deploy/autosort-backend:latest --region us-central1 --quiet
 ```
 
 ### Scheduler Jobs
