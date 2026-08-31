@@ -199,25 +199,16 @@ class GmailClient:
                 "labelIds": label_ids,
                 "maxResults": min(max_results - len(message_ids), 100)
             }
+            if read_only:
+                # Server-side read filter; the label itself stays in labelIds
+                # so special characters in label names never enter the query.
+                params["q"] = "is:read"
             if page_token:
                 params["pageToken"] = page_token
 
             response = self.service.users().messages().list(**params).execute()
             messages = response.get("messages", [])
-
-            if read_only:
-                # Filter for read messages (those without UNREAD label)
-                for msg in messages:
-                    # Get message to check labels
-                    msg_detail = self.service.users().messages().get(
-                        userId=self.user_id,
-                        id=msg["id"],
-                        format="minimal"
-                    ).execute()
-                    if "UNREAD" not in msg_detail.get("labelIds", []):
-                        message_ids.append(msg["id"])
-            else:
-                message_ids.extend([m["id"] for m in messages])
+            message_ids.extend([m["id"] for m in messages])
 
             if len(message_ids) >= max_results:
                 break

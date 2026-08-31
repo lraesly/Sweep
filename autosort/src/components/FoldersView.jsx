@@ -300,9 +300,9 @@ function FolderRow({
   let markReadNote = null;
   if (settings && settings.mark_read_enabled) {
     if (settings.archive_read_enabled) {
-      // Archive-read takes every read email with no time restriction, so it
-      // picks these up on the next cleanup and they leave the folder anyway.
-      markReadNote = '"Archive read emails" is also on, so these emails leave this folder on the next cleanup after they are marked read.';
+      // Archive-read takes every read email after a ~30-minute reading grace,
+      // so it picks these up shortly after and they leave the folder anyway.
+      markReadNote = '"Archive read emails" is also on, so these emails leave this folder shortly after they are marked read.';
     } else if (
       settings.archive_unread_enabled &&
       toHours(settings.mark_read_value || 7, settings.mark_read_unit || 'days') <
@@ -395,7 +395,7 @@ function FolderRow({
                     Archive read emails
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
-                    Move read emails out of this folder after a set time
+                    Move emails out of this folder once they've been read for ~30 minutes
                   </div>
                 </div>
                 <button
@@ -415,33 +415,6 @@ function FolderRow({
                   />
                 </button>
               </div>
-
-              {settings.archive_read_enabled && (
-                <div className="flex items-center gap-2 ml-4">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">After</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={settings.archive_read_unit === 'hours' ? 720 : 365}
-                    value={settings.archive_read_value || 30}
-                    onChange={(e) => {
-                      const max = settings.archive_read_unit === 'hours' ? 720 : 365;
-                      const value = Math.max(1, Math.min(max, parseInt(e.target.value) || 30));
-                      onUpdateSetting('archive_read_value', value);
-                    }}
-                    className="w-20 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center text-sm"
-                  />
-                  <select
-                    value={settings.archive_read_unit || 'days'}
-                    onChange={(e) => onUpdateSetting('archive_read_unit', e.target.value)}
-                    disabled={isSaving}
-                    className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm disabled:opacity-50"
-                  >
-                    <option value="hours">hours</option>
-                    <option value="days">days</option>
-                  </select>
-                </div>
-              )}
 
               {/* Archive unread emails */}
               <div className="flex items-center justify-between">

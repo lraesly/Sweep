@@ -12,6 +12,14 @@ from app.config import get_settings
 router = APIRouter()
 settings = get_settings()
 
+# How long a message must have been read before the scheduled archive-read
+# cleanup will take it. Opening a message in any mail client marks it read via
+# IMAP within seconds, so without this grace an email being actively read can
+# be archived out from under the reader. Nominal 30 minutes, minus a small
+# tolerance so a cleanup run that fires a few seconds early doesn't slip the
+# archive by a whole cycle.
+READ_ARCHIVE_GRACE = timedelta(minutes=28)
+
 
 # ============ RULES ============
 
@@ -748,19 +756,41 @@ async def cleanup_archive():
                     "marked_read": 0
                 }
 
-                # Archive read emails if enabled (no time restriction - archive immediately when read)
+                # Archive read emails if enabled. Gmail has no "read date", so
+                # each run stamps messages it newly sees as read and archives
+                # them on a later run, once READ_ARCHIVE_GRACE has elapsed —
+                # an email someone opened moments ago stays put.
                 if folder_settings.archive_read_enabled:
                     logger.info(f"Getting read messages from {label_name} (label_id: {folder_settings.label_id})")
                     read_messages = await gmail.get_messages_by_label(folder_settings.label_id, read_only=True)
                     logger.info(f"Found {len(read_messages)} read messages in {label_name}")
 
-                    if read_messages:
+                    pending = await engine.get_pending_reads(folder_settings.label_id)
+                    now = datetime.now(timezone.utc)
+                    to_archive = [
+                        mid for mid in read_messages
+                        if mid in pending and now - pending[mid] >= READ_ARCHIVE_GRACE
+                    ]
+
+                    if to_archive:
                         await gmail.batch_modify_labels(
-                            read_messages,
+                            to_archive,
                             remove_labels=[folder_settings.label_id]
                         )
-                        folder_result["read_archived"] = len(read_messages)
-                        logger.info(f"Archived {len(read_messages)} read emails from {label_name} for {user_email}")
+                        folder_result["read_archived"] = len(to_archive)
+                        logger.info(f"Archived {len(to_archive)} read emails from {label_name} for {user_email}")
+
+                    # Stamp newly-read messages and carry existing stamps
+                    # forward; anything archived above, or no longer read or
+                    # in the folder, drops out of the map.
+                    archived_ids = set(to_archive)
+                    new_pending = {
+                        mid: pending.get(mid, now)
+                        for mid in read_messages
+                        if mid not in archived_ids
+                    }
+                    if new_pending or pending:
+                        await engine.set_pending_reads(folder_settings.label_id, new_pending)
 
                 # Archive unread emails if enabled (and mark as read)
                 if folder_settings.archive_unread_enabled:
@@ -848,10 +878,10 @@ async def cleanup_magic_folder(
         "marked_read": 0
     }
 
-    # Archive ALL read emails (no time restriction)
+    # Archive ALL read emails (no reading grace - the user explicitly asked
+    # for cleanup right now)
     if folder_settings.archive_read_enabled:
-        query = f'label:"{label_name}" is:read'
-        read_messages = await gmail.search_messages(query)
+        read_messages = await gmail.get_messages_by_label(label_id, read_only=True)
 
         if read_messages:
             await gmail.batch_modify_labels(

@@ -18,6 +18,7 @@ class RuleEngine:
         self.magic_folders_collection = db.collection("users").document(user_id).collection("magic_folders")
         self.auto_learn_collection = db.collection("users").document(user_id).collection("auto_learn_folders")
         self.folder_settings_collection = db.collection("users").document(user_id).collection("folder_settings")
+        self.read_tracking_collection = db.collection("users").document(user_id).collection("read_tracking")
         self.stats_doc = db.collection("users").document(user_id)
 
     async def find_matching_rule(self, sender_email: str) -> Rule | None:
@@ -344,3 +345,22 @@ class RuleEngine:
     async def delete_folder_settings(self, label_id: str) -> None:
         """Delete settings for a magic folder."""
         await self.folder_settings_collection.document(label_id).delete()
+        await self.read_tracking_collection.document(label_id).delete()
+
+    # Read-archive grace tracking
+
+    async def get_pending_reads(self, label_id: str) -> dict:
+        """Get {message_id: first_seen_read_at} for a folder.
+
+        Gmail has no queryable "read date", so the cleanup job records when it
+        first sees each message as read and only archives it on a later run,
+        once a grace period has elapsed.
+        """
+        doc = await self.read_tracking_collection.document(label_id).get()
+        if doc.exists:
+            return doc.to_dict().get("pending", {})
+        return {}
+
+    async def set_pending_reads(self, label_id: str, pending: dict) -> None:
+        """Replace the pending-read map for a folder (empty dict clears it)."""
+        await self.read_tracking_collection.document(label_id).set({"pending": pending})
