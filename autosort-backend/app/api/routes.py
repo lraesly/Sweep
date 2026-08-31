@@ -794,9 +794,11 @@ async def cleanup_archive():
 
                 # Archive unread emails if enabled (and mark as read)
                 if folder_settings.archive_unread_enabled:
-                    unit_suffix = "h" if folder_settings.archive_unread_unit == "hours" else "d"
-                    query = f'label:"{label_name}" older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread'
-                    unread_messages = await gmail.search_messages(query)
+                    query = older_than_query(folder_settings.archive_unread_value, folder_settings.archive_unread_unit)
+                    unread_messages = await gmail.search_messages(
+                        query,
+                        label_ids=[folder_settings.label_id, "UNREAD"]
+                    )
 
                     if unread_messages:
                         await gmail.batch_modify_labels(
@@ -893,9 +895,8 @@ async def cleanup_magic_folder(
 
     # Archive unread emails older than configured time
     if folder_settings.archive_unread_enabled:
-        unit_suffix = "h" if folder_settings.archive_unread_unit == "hours" else "d"
-        query = f'label:"{label_name}" older_than:{folder_settings.archive_unread_value}{unit_suffix} is:unread'
-        unread_messages = await gmail.search_messages(query)
+        query = older_than_query(folder_settings.archive_unread_value, folder_settings.archive_unread_unit)
+        unread_messages = await gmail.search_messages(query, label_ids=[label_id, "UNREAD"])
 
         if unread_messages:
             await gmail.batch_modify_labels(
