@@ -87,6 +87,17 @@ async def process_gmail_notification(user_email: str, history_id: str):
     )
     logger.info(f"History records: {len(history.get('history', []))}")
 
+    # Fetch labels once per batch and pre-compute the set of magic-folder IDs.
+    # A bulk label-add to a non-magic folder can otherwise generate hundreds of
+    # labelsAdded events that each cost two Gmail API calls before being
+    # filtered out, blocking the loop from ever reaching the messagesAdded
+    # events or the final history_id update.
+    all_labels = await gmail.list_labels()
+    label_map = {l["id"]: l["name"] for l in all_labels}
+    magic_label_ids = {
+        lid for lid, name in label_map.items() if name.startswith("@")
+    }
+
     for record in history.get("history", []):
         # Handle new messages → apply existing rules
         for msg_added in record.get("messagesAdded", []):
@@ -96,11 +107,13 @@ async def process_gmail_notification(user_email: str, history_id: str):
 
         # Handle label additions → detect magic folder drops
         for label_added in record.get("labelsAdded", []):
-            message_id = label_added["message"]["id"]
             added_labels = label_added.get("labelIds", [])
+            if not any(lid in magic_label_ids for lid in added_labels):
+                continue
+            message_id = label_added["message"]["id"]
             logger.info(f"Processing label change: {message_id}, labels: {added_labels}")
             await process_label_change(
-                gmail, rule_engine, message_id, added_labels
+                gmail, rule_engine, message_id, added_labels, label_map
             )
 
     # Use the latest historyId from the API response (most up-to-date),
@@ -196,19 +209,19 @@ async def process_label_change(
     gmail: GmailClient,
     rule_engine: RuleEngine,
     message_id: str,
-    added_labels: list[str]
+    added_labels: list[str],
+    label_map: dict[str, str],
 ):
     """
     Detect when user drags email to a magic folder (starts with @).
     Create a rule so future emails from that sender go to the same folder.
     No opt-in required - any @folder learns automatically.
+
+    label_map: pre-fetched {label_id: label_name} cache from the caller, to
+    avoid per-event list_labels() API calls.
     """
 
     try:
-        # Get all labels to map IDs to names
-        all_labels = await gmail.list_labels()
-        label_map = {l["id"]: l["name"] for l in all_labels}
-
         # Get stored blackhole label ID
         blackhole_label_id = await rule_engine.get_blackhole_label_id()
 
