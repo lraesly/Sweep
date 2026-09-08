@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.dependencies import get_current_user, User
 from app.rules.engine import RuleEngine
-from app.rules.models import Rule, RuleCreate, RuleUpdate, MagicFolder, AutoLearnFolder, UserSettings, UserSettingsUpdate, MagicFolderSettings, MagicFolderSettingsUpdate, TimeUnit
+from app.rules.models import Rule, RuleCreate, RuleUpdate, ActionType, MagicFolder, AutoLearnFolder, UserSettings, UserSettingsUpdate, MagicFolderSettings, MagicFolderSettingsUpdate, TimeUnit
 from pydantic import BaseModel
 from app.gmail.client import GmailClient
 from app.config import get_settings
@@ -20,6 +20,45 @@ settings = get_settings()
 # archive by a whole cycle.
 READ_ARCHIVE_GRACE = timedelta(minutes=28)
 
+
+
+async def _resolve_destination(gmail: GmailClient, data: dict, action: str | None) -> dict:
+    """
+    Make sure destination_label_id and destination_label_name agree.
+
+    The rule engine moves mail by label ID, and GET /rules re-syncs the name
+    from that ID. So a client that only sends a new name (older editors did)
+    would appear to save, then revert on the next load. Resolve the name to
+    its label ID here so the two can never drift apart.
+    """
+    if action is not None and action != ActionType.MOVE:
+        return data
+
+    label_id = data.get("destination_label_id")
+    label_name = data.get("destination_label_name")
+    if not label_id and not label_name:
+        return data
+
+    labels = await gmail.list_labels()
+    by_id = {l["id"]: l["name"] for l in labels}
+    by_name = {l["name"].casefold(): l for l in labels}
+
+    if label_id and label_id in by_id:
+        # ID is authoritative; keep the name in step with Gmail.
+        data["destination_label_name"] = by_id[label_id]
+        return data
+
+    if label_name:
+        match = by_name.get(label_name.strip().casefold())
+        if match:
+            data["destination_label_id"] = match["id"]
+            data["destination_label_name"] = match["name"]
+            return data
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Folder not found in Gmail: {label_name or label_id}",
+    )
 
 # ============ RULES ============
 
@@ -52,12 +91,15 @@ async def create_rule(
 ):
     """Manually create a rule."""
     engine = RuleEngine(user.id)
+    data = await _resolve_destination(
+        GmailClient(user.credentials), rule.model_dump(), rule.action
+    )
     return await engine.create_rule(
         email_pattern=rule.email_pattern,
         match_type=rule.match_type,
         action=rule.action,
-        destination_label_id=rule.destination_label_id,
-        destination_label_name=rule.destination_label_name,
+        destination_label_id=data["destination_label_id"],
+        destination_label_name=data["destination_label_name"],
         mark_as_read=rule.mark_as_read
     )
 
@@ -91,6 +133,19 @@ async def update_rule(
         raise HTTPException(status_code=404, detail="Rule not found")
 
     updates = update.model_dump(exclude_unset=True)
+
+    if "destination_label_id" in updates or "destination_label_name" in updates:
+        # If only the name changed, drop the stale ID so the name is resolved
+        # against Gmail; otherwise GET /rules would overwrite the name from
+        # the old ID and the edit would silently revert.
+        if "destination_label_name" in updates and "destination_label_id" not in updates:
+            if updates["destination_label_name"] != rule.destination_label_name:
+                updates["destination_label_id"] = None
+            else:
+                updates["destination_label_id"] = rule.destination_label_id
+        action = updates.get("action", rule.action)
+        updates = await _resolve_destination(GmailClient(user.credentials), updates, action)
+
     logger.info(f"Updating rule {rule_id} with: {updates}")
     result = await engine.update_rule(rule_id, updates)
     logger.info(f"Updated rule result: mark_as_read={result.mark_as_read}")
